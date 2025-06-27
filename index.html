@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black">
+  <title>GPS Tracker</title>
+  <link rel="apple-touch-icon" href="icon.png"> <!-- Optional: Add your app icon -->
+  <style>
+    body, html {
+      margin: 0;
+      padding: 0;
+      height: 100%;
+      background: #111;
+      color: white;
+      font-family: sans-serif;
+      overflow: hidden;
+    }
+    canvas {
+      display: block;
+      width: 100%;
+      height: 100%;
+    }
+  </style>
+</head>
+<body>
+
+<canvas id="gpsChart"></canvas>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+  const ctx = document.getElementById('gpsChart').getContext('2d');
+
+  const gpsChart = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels: [],
+      datasets: [{
+        label: 'Latitude',
+        borderColor: 'red',
+        data: [],
+        fill: false,
+      }, {
+        label: 'Longitude',
+        borderColor: 'blue',
+        data: [],
+        fill: false,
+      }]
+    },
+    options: {
+      responsive: true,
+      animation: false,
+      scales: {
+        x: {
+          title: { display: true, text: 'Time' },
+        },
+        y: {
+          title: { display: true, text: 'Degrees' }
+        }
+      },
+      plugins: {
+        legend: {
+          position: 'top',
+          labels: {
+            color: 'white'
+          }
+        }
+      }
+    }
+  });
+
+  function addGPSPoint(lat, lon) {
+    const now = new Date().toLocaleTimeString();
+    gpsChart.data.labels.push(now);
+    gpsChart.data.datasets[0].data.push(lat);
+    gpsChart.data.datasets[1].data.push(lon);
+
+    if (gpsChart.data.labels.length > 20) {
+      gpsChart.data.labels.shift();
+      gpsChart.data.datasets[0].data.shift();
+      gpsChart.data.datasets[1].data.shift();
+    }
+
+    gpsChart.update();
+  }
+
+  function handleLocation(position) {
+    const { latitude, longitude } = position.coords;
+    console.log(`Lat: ${latitude}, Lon: ${longitude}`);
+    addGPSPoint(latitude, longitude);
+  }
+
+  function startTracking() {
+    if (navigator.geolocation) {
+      navigator.geolocation.watchPosition(handleLocation, 
+        err => alert("GPS error: " + err.message), 
+        { enableHighAccuracy: true, maximumAge: 1000 });
+    } else {
+      alert("Geolocation not supported");
+    }
+  }
+
+  startTracking();
+</script>
+
+</body>
+</html>
