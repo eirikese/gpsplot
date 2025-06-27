@@ -2,9 +2,9 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
-  <meta name="apple-mobile-web-app-status-bar-style" content="black" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <title>GPS Tracker</title>
   <link rel="apple-touch-icon" href="icon.png" />
   <link
@@ -21,10 +21,10 @@
       font-family: sans-serif;
       background: #111;
       color: white;
-      overflow: hidden;
     }
     #map, #gpsChart {
       height: 40%;
+      width: 100%;
     }
     #controls {
       display: flex;
@@ -55,9 +55,12 @@
 ></script>
 
 <script>
+  console.log("Script loaded");
+
   let watchId = null;
   let history = JSON.parse(localStorage.getItem('gpsHistory')) || [];
 
+  // Initialize Leaflet map
   const map = L.map('map').setView([0, 0], 2);
   const marker = L.marker([0, 0]).addTo(map);
 
@@ -65,41 +68,43 @@
     maxZoom: 19,
   }).addTo(map);
 
+  // Chart.js setup
   const ctx = document.getElementById('gpsChart').getContext('2d');
-
   const gpsChart = new Chart(ctx, {
     type: 'line',
     data: {
       labels: history.map(p => p.time),
-      datasets: [{
-        label: 'Latitude',
-        borderColor: 'red',
-        data: history.map(p => p.lat),
-        fill: false,
-      }, {
-        label: 'Longitude',
-        borderColor: 'blue',
-        data: history.map(p => p.lon),
-        fill: false,
-      }]
+      datasets: [
+        {
+          label: 'Latitude',
+          borderColor: 'red',
+          data: history.map(p => p.lat),
+          fill: false,
+        },
+        {
+          label: 'Longitude',
+          borderColor: 'blue',
+          data: history.map(p => p.lon),
+          fill: false,
+        }
+      ]
     },
     options: {
       responsive: true,
       animation: false,
       scales: {
-        x: { title: { display: true, text: 'Time' }},
-        y: { title: { display: true, text: 'Degrees' }}
+        x: { title: { display: true, text: 'Time' } },
+        y: { title: { display: true, text: 'Degrees' } }
       },
       plugins: {
-        legend: {
-          labels: { color: 'white' }
-        }
+        legend: { labels: { color: 'white' } }
       }
     }
   });
 
   function updateChartAndMap(lat, lon) {
     const time = new Date().toLocaleTimeString();
+
     gpsChart.data.labels.push(time);
     gpsChart.data.datasets[0].data.push(lat);
     gpsChart.data.datasets[1].data.push(lon);
@@ -124,43 +129,65 @@
 
   function handleLocation(pos) {
     const { latitude: lat, longitude: lon } = pos.coords;
+    console.log("Position:", lat, lon);
     updateChartAndMap(lat, lon);
     saveHistory(lat, lon);
   }
 
   function handleError(err) {
     alert("Location error: " + err.message);
+    console.error("Geolocation error:", err);
   }
 
   function startTracking() {
+    console.log("Start button clicked");
+
     if (!navigator.geolocation) {
       alert("Geolocation not supported by your device.");
       return;
     }
-    if (!watchId) {
-      watchId = navigator.geolocation.watchPosition(handleLocation, handleError, {
+
+    // Force location permission request
+    navigator.geolocation.getCurrentPosition(
+      position => {
+        console.log("Initial position granted");
+        handleLocation(position);
+        watchId = navigator.geolocation.watchPosition(handleLocation, handleError, {
+          enableHighAccuracy: true,
+          maximumAge: 1000,
+          timeout: 10000
+        });
+        console.log("Tracking started. watchId:", watchId);
+      },
+      error => {
+        handleError(error);
+      },
+      {
         enableHighAccuracy: true,
-        maximumAge: 1000,
-        timeout: 10000
-      });
-    }
+        timeout: 10000,
+        maximumAge: 0
+      }
+    );
   }
 
   function stopTracking() {
+    console.log("Stop button clicked");
     if (watchId !== null) {
       navigator.geolocation.clearWatch(watchId);
+      console.log("Tracking stopped. watchId cleared.");
       watchId = null;
     }
   }
 
-  document.getElementById("startBtn").addEventListener("click", startTracking);
-  document.getElementById("stopBtn").addEventListener("click", stopTracking);
-
-  // Restore last known position on map
+  // Restore last position
   if (history.length > 0) {
     const last = history[history.length - 1];
     updateChartAndMap(last.lat, last.lon);
   }
+
+  // Button bindings
+  document.getElementById("startBtn").addEventListener("click", startTracking);
+  document.getElementById("stopBtn").addEventListener("click", stopTracking);
 </script>
 
 </body>
